@@ -3,27 +3,33 @@ package com.test;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.AuthenticationException;
 import org.apache.shiro.authc.UsernamePasswordToken;
-import org.apache.shiro.mgt.DefaultSecurityManager;
-import org.apache.shiro.realm.text.IniRealm;
+import org.apache.shiro.authc.credential.DefaultPasswordService;
+import org.apache.shiro.config.IniSecurityManagerFactory;
+import org.apache.shiro.mgt.SecurityManager;
 import org.apache.shiro.subject.Subject;
+import org.apache.shiro.util.Factory;
 import org.junit.Test;
 
 /**
  * Created by rick on 6/15/18.
  *
- * 默认使用IniRealm
+ * 创建表
+ *       users
+ *       user_role
+ *       roles_permissions
+ *
  */
-public class PropertyFileTest {
+public class JdbcPasswordTest {
 
     @Test
     public void  testLogin() {
 
         //1、获取 SecurityManager 工厂，此处使用 Ini 配置文件初始化 SecurityManager
-        IniRealm iniRealm = new IniRealm("classpath:shiro.ini");
+        Factory<SecurityManager> factory =
+            new IniSecurityManagerFactory("classpath:shiro-jdbc-passwordservice.ini");
 
         //2、得到 SecurityManager 实例 并绑定给 SecurityUtils
-        DefaultSecurityManager securityManager = new DefaultSecurityManager();
-        securityManager.setRealm(iniRealm);
+        SecurityManager securityManager = factory.getInstance();
         SecurityUtils.setSecurityManager(securityManager);
 
 
@@ -43,5 +49,13 @@ public class PropertyFileTest {
 
         subject.logout();
 
+    }
+
+    public static void main(String[] args) {
+        DefaultPasswordService passwordService = new DefaultPasswordService();
+
+        System.out.println(passwordService.encryptPassword("123"));
+
+        //output: $shiro1$SHA-256$500000$VYJGkGlzDu6PKLjg/ma+Uw==$ywJvjEagvsK1WuQZpEKZnLmyeNkpDFi5ThCRpN1NQR0=
     }
 }
