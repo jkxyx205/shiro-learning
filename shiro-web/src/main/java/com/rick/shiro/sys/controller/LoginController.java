@@ -3,6 +3,8 @@ package com.rick.shiro.sys.controller;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.IncorrectCredentialsException;
 import org.apache.shiro.authc.UnknownAccountException;
+import org.apache.shiro.session.Session;
+import org.apache.shiro.subject.Subject;
 import org.apache.shiro.web.filter.authc.FormAuthenticationFilter;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Created by rick on 6/15/18.
@@ -21,6 +22,15 @@ public class LoginController {
 
     @GetMapping("/index")
     public String index() {
+        Subject subject = SecurityUtils.getSubject();
+        Session session = subject.getSession();
+
+        System.out.println(session.getHost() + ":" + subject.getPrincipal());
+
+        System.out.println("has role admin => " + subject.hasRole("admin"));
+
+
+
         return "index";
     }
 
@@ -28,10 +38,8 @@ public class LoginController {
     @RequestMapping("/login")
     public String login(HttpServletRequest request, Map<String, Object> map) throws Exception{
 
-        if (Objects.nonNull(SecurityUtils.getSubject().getPrincipal())) {
-            return "redirect:index";
-        }
-
+//        if (Objects.nonNull(SecurityUtils.getSubject().getPrincipal()))
+//            return "redirect:index";
 
         System.out.println("HomeController.login()");
         // 登录失败从request中获取shiro处理的异常信息。

@@ -1,12 +1,23 @@
 package com.rick.shiro.realm;
 
 import org.apache.shiro.authc.*;
+import org.apache.shiro.authc.credential.PasswordService;
+import org.apache.shiro.authz.AuthorizationInfo;
+import org.apache.shiro.realm.AuthorizingRealm;
 import org.apache.shiro.realm.Realm;
+import org.apache.shiro.subject.PrincipalCollection;
 
 /**
  * Created by rick on 6/15/18.
  */
-public class MyRealm implements Realm {
+public class MyRealm extends AuthorizingRealm {
+
+    private PasswordService passwordService;
+
+    public void setPasswordService(PasswordService passwordService) {
+        this.passwordService = passwordService;
+    }
+
     @Override
     public String getName() {
         return "myrealm";
@@ -24,19 +35,25 @@ public class MyRealm implements Realm {
      * @throws AuthenticationException
      */
     @Override
-    public AuthenticationInfo getAuthenticationInfo(AuthenticationToken authenticationToken) throws AuthenticationException {
-
+    protected AuthenticationInfo doGetAuthenticationInfo(AuthenticationToken authenticationToken) throws AuthenticationException {
         String username = (String)authenticationToken.getPrincipal();
         String password = new String((char[])authenticationToken.getCredentials());
 
-        if(!"zhang".equals(username)) {
-            throw new UnknownAccountException(); //如果用户名错误
-        }
-
-        if(!"123".equals(password)) {
-            throw new IncorrectCredentialsException(); //如果密码错误
-        }
+//        if(!"zhang".equals(username)) {
+//            throw new UnknownAccountException(); //如果用户名错误
+//        }
+//
+//        if(!"123".equals(password)) {
+//            throw new IncorrectCredentialsException(); //如果密码错误
+//        }
         //如果身份认证验证成功，返回一个 AuthenticationInfo 实现;
-        return new SimpleAuthenticationInfo(username, password, getName());
+        return new SimpleAuthenticationInfo("zhang",
+                    "123",
+                    getName());
+    }
+
+    @Override
+    protected AuthorizationInfo doGetAuthorizationInfo(PrincipalCollection principalCollection) {
+        return null;
     }
 }

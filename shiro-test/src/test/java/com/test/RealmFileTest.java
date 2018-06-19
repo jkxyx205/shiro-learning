@@ -31,7 +31,7 @@ public class RealmFileTest {
         Subject subject = SecurityUtils.getSubject();
 
         //3、得到 Subject 及创建用户名/密码身份验证 Token(即用户身份/凭证)
-        UsernamePasswordToken token = new UsernamePasswordToken("zhang", "123");
+        UsernamePasswordToken token = new UsernamePasswordToken("zhang", "1232");
 
 
         try {

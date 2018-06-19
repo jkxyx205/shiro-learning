@@ -1,73 +1,82 @@
 package com.rick.shiro.sys.security;
 
 import org.apache.shiro.authc.credential.HashedCredentialsMatcher;
+import org.apache.shiro.cache.CacheManager;
+import org.apache.shiro.cache.ehcache.EhCacheManager;
+import org.apache.shiro.codec.Base64;
+import org.apache.shiro.mgt.SecurityManager;
+import org.apache.shiro.session.SessionListener;
+import org.apache.shiro.session.mgt.ExecutorServiceSessionValidationScheduler;
+import org.apache.shiro.session.mgt.SessionValidationScheduler;
+import org.apache.shiro.session.mgt.eis.EnterpriseCacheSessionDAO;
+import org.apache.shiro.session.mgt.eis.JavaUuidSessionIdGenerator;
+import org.apache.shiro.session.mgt.eis.SessionDAO;
 import org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor;
 import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
-import org.apache.shiro.spring.web.config.DefaultShiroFilterChainDefinition;
-import org.apache.shiro.spring.web.config.ShiroFilterChainDefinition;
+import org.apache.shiro.web.mgt.CookieRememberMeManager;
 import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
+import org.apache.shiro.web.servlet.SimpleCookie;
+import org.apache.shiro.web.session.mgt.DefaultWebSessionManager;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.web.servlet.handler.SimpleMappingExceptionResolver;
-import org.apache.shiro.mgt.SecurityManager;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * Created by rick on 6/15/18.
  */
 @Configuration
 public class ShiroConfig {
+
+    @Autowired
+    private SessionListener sessionListener;
+
+
+    /**
+     * 主控制器
+     * @param securityManager
+     * @return
+     */
     @Bean
     public ShiroFilterFactoryBean shirFilter(SecurityManager securityManager) {
         System.out.println("ShiroConfiguration.shirFilter()");
+
         ShiroFilterFactoryBean shiroFilterFactoryBean = new ShiroFilterFactoryBean();
         shiroFilterFactoryBean.setSecurityManager(securityManager);
+
         //拦截器.
         Map<String,String> filterChainDefinitionMap = new LinkedHashMap<String,String>();
-        // 配置不会被拦截的链接 顺序判断
+        // 配置不会被拦截的链接顺序判断
         filterChainDefinitionMap.put("/static/**", "anon");
-        filterChainDefinitionMap.put("/student", "perms[act:model:edit]");
+//        filterChainDefinitionMap.put("/index", "user");
+        filterChainDefinitionMap.put("/login", "authc");
 
         //配置退出 过滤器,其中的具体的退出代码Shiro已经替我们实现了
         filterChainDefinitionMap.put("/logout", "logout");
+
+        filterChainDefinitionMap.put("/student", "authc,perms[act:model:edit]");
+
         //<!-- 过滤链定义，从上向下顺序执行，一般将/**放在最为下边 -->:这是一个坑呢，一不小心代码就不好使了;
-        //<!-- authc:所有url都必须认证通过才可以访问; anon:所有url都都可以匿名访问-->
-        filterChainDefinitionMap.put("/**", "authc");
+        //<!-- authc:所有url都必须认证通过才可以访问; anon:所有url都都可以匿名访问; user：认证+rememberMe-->
+        filterChainDefinitionMap.put("/**", "user");
+
         // 如果不设置默认会自动寻找Web工程根目录下的"/login.jsp"页面
         shiroFilterFactoryBean.setLoginUrl("/login");
+
         // 登录成功后要跳转的链接
         shiroFilterFactoryBean.setSuccessUrl("/index");
 
-//        filterChainDefinitionMap.put("/student", "perms[act:model:edit]");
         //未授权界面;
         shiroFilterFactoryBean.setUnauthorizedUrl("/403");
+
         shiroFilterFactoryBean.setFilterChainDefinitionMap(filterChainDefinitionMap);
         return shiroFilterFactoryBean;
     }
 
-    @Bean
-    public ShiroFilterChainDefinition shiroFilterChainDefinition() {
-        DefaultShiroFilterChainDefinition chainDefinition = new DefaultShiroFilterChainDefinition();
-
-        // logged in users with the 'admin' role
-        chainDefinition.addPathDefinition("/admin/**", "authc, roles[admin]");
-
-        // logged in users with the 'document:read' permission
-        chainDefinition.addPathDefinition("/student", "anon");
-
-        // all other paths require a logged in user
-        chainDefinition.addPathDefinition("/**", "authc");
-        return chainDefinition;
-    }
-
     /**
-     * 凭证匹配器
-     * （由于我们的密码校验交给Shiro的SimpleAuthenticationInfo进行处理了
-     * ）
+     * 定义凭证匹配器（由于我们的密码校验交给Shiro的SimpleAuthenticationInfo进行处理了）
      * @return
      */
     @Bean
@@ -78,10 +87,22 @@ public class ShiroConfig {
         return hashedCredentialsMatcher;
     }
 
+    /**
+     * 自定义Realm
+     * @return
+     */
     @Bean
     public UserRealm userRealm(){
         UserRealm userRealm = new UserRealm();
         userRealm.setCredentialsMatcher(hashedCredentialsMatcher());
+        userRealm.setCachingEnabled(true);
+
+        userRealm.setAuthenticationCachingEnabled(true);
+        userRealm.setAuthenticationCacheName("authenticationCache");
+
+        userRealm.setAuthorizationCachingEnabled(true);
+        userRealm.setAuthorizationCacheName("authorizationCache");
+
         return userRealm;
     }
 
@@ -89,7 +110,11 @@ public class ShiroConfig {
     @Bean
     public SecurityManager securityManager(){
         DefaultWebSecurityManager securityManager =  new DefaultWebSecurityManager();
+        securityManager.setCacheManager(cacheManager());
         securityManager.setRealm(userRealm());
+        securityManager.setRememberMeManager(rememberMeManager());
+        securityManager.setSessionManager(sessionManager());
+
         return securityManager;
     }
 
@@ -106,6 +131,59 @@ public class ShiroConfig {
         return authorizationAttributeSourceAdvisor;
     }
 
+    @Bean
+    public SessionDAO sessionDAO() {
+        EnterpriseCacheSessionDAO sessionDAO = new EnterpriseCacheSessionDAO();
+        JavaUuidSessionIdGenerator sessionIdGenerator = new JavaUuidSessionIdGenerator();
+        sessionDAO.setSessionIdGenerator(sessionIdGenerator);
+        sessionDAO.setActiveSessionsCacheName("shiro-activeSessionCache");
+        return sessionDAO;
+    }
+
+    @Bean
+    public DefaultWebSessionManager sessionManager() {
+        Collection<SessionListener> listeners = new ArrayList<>();
+        listeners.add(sessionListener);
+
+        DefaultWebSessionManager sessionManager = new DefaultWebSessionManager();
+        sessionManager.setSessionListeners(listeners);
+        sessionManager.setSessionDAO(sessionDAO());
+        sessionManager.setSessionValidationScheduler(sessionValidationScheduler());
+        sessionManager.setSessionValidationSchedulerEnabled(true);
+        sessionManager.setGlobalSessionTimeout(1800000);
+        return sessionManager;
+    }
+
+    /**
+     * cookie对象;
+     * rememberMeCookie()方法是设置Cookie的生成模版，比如cookie的name，cookie的有效时间等等。
+     * @return
+     */
+    @Bean
+    public SimpleCookie rememberMeCookie(){
+        //System.out.println("ShiroConfiguration.rememberMeCookie()");
+        //这个参数是cookie的名称，对应前端的checkbox的name = rememberMe
+        SimpleCookie simpleCookie = new SimpleCookie("rememberMe");
+        //<!-- 记住我cookie生效时间30天 ,单位秒;-->
+        simpleCookie.setMaxAge(259200);
+        simpleCookie.setHttpOnly(true);
+        return simpleCookie;
+    }
+
+    /**
+     * cookie管理对象;
+     * rememberMeManager()方法是生成rememberMe管理器，而且要将这个rememberMe管理器设置到securityManager中
+     * @return
+     */
+    @Bean
+    public CookieRememberMeManager rememberMeManager(){
+        CookieRememberMeManager cookieRememberMeManager = new CookieRememberMeManager();
+        cookieRememberMeManager.setCookie(rememberMeCookie());
+        //rememberMe cookie加密的密钥 建议每个项目都不一样 默认AES算法 密钥长度(128 256 512 位)
+        cookieRememberMeManager.setCipherKey(Base64.decode("2AvVhdsgUs0FSA3SDFAdag=="));
+        return cookieRememberMeManager;
+    }
+
     @Bean(name="simpleMappingExceptionResolver")
     public SimpleMappingExceptionResolver createSimpleMappingExceptionResolver() {
         SimpleMappingExceptionResolver r = new SimpleMappingExceptionResolver();
@@ -115,7 +193,26 @@ public class ShiroConfig {
         r.setExceptionMappings(mappings);  // None by default
         r.setDefaultErrorView("error");    // No default
         r.setExceptionAttribute("ex");     // Default is "exception"
-        //r.setWarnLogCategory("example.MvcLogger");     // No default
         return r;
+    }
+
+    @Bean
+    public CacheManager cacheManager() {
+        EhCacheManager cacheManager = new EhCacheManager();
+        cacheManager.setCacheManagerConfigFile("classpath:ehcache-shiro.xml");
+
+        return cacheManager;
+    }
+
+    /**
+     * 会话验证器
+     */
+    @Bean
+    public SessionValidationScheduler sessionValidationScheduler() {
+        ExecutorServiceSessionValidationScheduler sessionValidationScheduler = new ExecutorServiceSessionValidationScheduler();
+        sessionValidationScheduler.setInterval(3600000);
+        //下面会导致栈溢出
+//        sessionValidationScheduler.setSessionManager(sessionManager());
+        return sessionValidationScheduler;
     }
 }

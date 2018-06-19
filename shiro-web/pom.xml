@@ -53,6 +53,11 @@
 			<artifactId>ehcache-core</artifactId>
 			<version>2.6.6</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.shiro</groupId>
+			<artifactId>shiro-ehcache</artifactId>
+			<version>1.4.0</version>
+		</dependency>
 
 		<dependency>
 			<groupId>mysql</groupId>
