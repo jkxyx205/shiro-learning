@@ -5,8 +5,6 @@ import com.rick.shiro.sys.entity.Role;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
-
 /**
  * Created by rick on 6/15/18.
  */

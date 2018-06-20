@@ -4,13 +4,14 @@ import com.rick.shiro.sys.dao.UserRepository;
 import com.rick.shiro.sys.entity.Permission;
 import com.rick.shiro.sys.entity.Role;
 import com.rick.shiro.sys.entity.User;
-//import com.rick.shiro.sys.util.PasswordHelper;
 import com.rick.shiro.sys.util.PasswordHelper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
 import java.util.Set;
+
+//import com.rick.shiro.sys.util.PasswordHelper;
 
 /**
  * Created by rick on 6/15/18.
